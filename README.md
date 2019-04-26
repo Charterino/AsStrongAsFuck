@@ -5,7 +5,7 @@ Help me by improving the obfuscator!
 
 Example of working:
 -
-The first screenshot:
-![one.png](https://charter.ml/one.png)
-The second screenshot:
-![two.png](https://charter.ml/two.png)
+The first screenshot: <br>
+![one.png](https://charter.ml/one.png) <br>
+The second screenshot: <br> 
+![two.png](https://charter.ml/two.png) <br>
