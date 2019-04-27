@@ -1,7 +1,7 @@
 # AsStrongAsFuck
 
 AsStrongAsFuck - Free C# console obfuscation engine.
-Help me by improving the obfuscator!
+Help me by improving the obfuscator! Discord: https://discord.gg/84ktUrr
 
 Example of working:
 -
