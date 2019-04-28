@@ -68,8 +68,6 @@ namespace AsStrongAsFuck
                             eq = OpCodes.Stsfld;
                             break;
                     }
-                    if (eq == null)
-                        Console.WriteLine(instructions[i].OpCode);
                     instructions[i].OpCode = eq;
                     instructions[i].Operand = def;
 
