@@ -78,6 +78,7 @@ namespace AsStrongAsFuck
                         {
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldnull));
                         }
+
                         proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
                         proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
                         for (int x = 0; x < proxy.Parameters.Count; x++)
@@ -106,6 +107,11 @@ namespace AsStrongAsFuck
         protected MethodSig CreateProxySignature(IMethod method)
         {
             IEnumerable<TypeSig> paramTypes = method.MethodSig.Params;
+            if (method.MethodSig.HasThis && !method.MethodSig.ExplicitThis)
+            {
+                TypeDef declType = method.DeclaringType.ResolveTypeDefThrow();
+                paramTypes = new[] { Import(Module, declType).ToTypeSig() }.Concat(paramTypes);
+            }
             TypeSig retType = method.MethodSig.RetType;
             if (retType.IsClassSig)
                 retType = Module.CorLibTypes.Object;

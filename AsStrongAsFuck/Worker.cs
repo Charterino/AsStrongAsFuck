@@ -74,7 +74,7 @@ namespace AsStrongAsFuck
         public void LoadAssembly()
         {
             Console.Write("Loading assembly...");
-            Default_Assembly = Assembly.LoadFile(Path);
+            Default_Assembly = Assembly.UnsafeLoadFrom(Path);
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(" Loaded: ");
             Console.WriteLine(Default_Assembly.FullName);
