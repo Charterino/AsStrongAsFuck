@@ -73,24 +73,30 @@ namespace AsStrongAsFuck
                         {
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Dup));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
+                            for (int x = 1; x < proxy.Parameters.Count; x++)
+                                proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
                         }
                         else
                         {
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldnull));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
+                            for (int x = 0; x < proxy.Parameters.Count; x++)
+                                proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
                         }
 
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
-                        for (int x = 0; x < proxy.Parameters.Count; x++)
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+                        
 
                         AddedDelegates.Add(type.Rid);
                         value = new Tuple<MethodDef, TypeDef>(proxy, type);
                         Proxies.Add(key, value);
                     }
-
 
                     instr.Operand = value.Item1;
                 }
@@ -106,11 +112,11 @@ namespace AsStrongAsFuck
 
         protected MethodSig CreateProxySignature(IMethod method)
         {
-            IEnumerable<TypeSig> paramTypes = method.MethodSig.Params;
+            List<TypeSig> paramTypes = method.MethodSig.Params.ToList();
             if (method.MethodSig.HasThis && !method.MethodSig.ExplicitThis)
             {
                 TypeDef declType = method.DeclaringType.ResolveTypeDefThrow();
-                paramTypes = new[] { Import(Module, declType).ToTypeSig() }.Concat(paramTypes);
+                paramTypes.Insert(0, Import(Module, declType).ToTypeSig());
             }
             TypeSig retType = method.MethodSig.RetType;
             if (retType.IsClassSig)
@@ -127,14 +133,23 @@ namespace AsStrongAsFuck
         protected TypeDef CreateDelegateType(MethodSig sig)
         {
             TypeDef ret = new TypeDefUser("AsStrongAsFuck" + Runtime.GetRandomName(), Runtime.GetRandomName() + Runtime.GetChineseString(20), Module.CorLibTypes.GetTypeRef("System", "MulticastDelegate"));
-            ret.Attributes = TypeAttributes.Public;
+            ret.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
 
             var ctor = new MethodDefUser(".ctor", MethodSig.CreateInstance(Module.CorLibTypes.Void, Module.CorLibTypes.Object, Module.CorLibTypes.IntPtr));
             ctor.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.RTSpecialName | MethodAttributes.SpecialName;
             ctor.ImplAttributes = MethodImplAttributes.Runtime;
             ret.Methods.Add(ctor);
 
-            var invoke = new MethodDefUser("Invoke", sig.Clone());
+            var clone = sig.Clone();
+
+            if (clone.HasThis && clone.ExplicitThis)
+            {
+                if (clone.Params.Count > 0)
+                    clone.Params.RemoveAt(0);
+            }
+
+
+            var invoke = new MethodDefUser("Invoke", clone);
             invoke.MethodSig.HasThis = true;
             invoke.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.Virtual | MethodAttributes.NewSlot;
             invoke.ImplAttributes = MethodImplAttributes.Runtime;
