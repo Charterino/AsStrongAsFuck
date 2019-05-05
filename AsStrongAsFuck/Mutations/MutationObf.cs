@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AsStrongAsFuck.Runtime;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 
@@ -17,28 +18,35 @@ namespace AsStrongAsFuck.Mutations
             new Sub(),
             new Div(),
             new Mul(),
+            new StringLen(),
             new Abs(),
-            new StringLen()
+            new Func(),
+            new CharMutations()
         };
-
 
 
         public void Execute(ModuleDefMD md)
         {
             Module = md;
+
             foreach (TypeDef tDef in md.Types)
             {
-                foreach (MethodDef mDef in tDef.Methods.Where(x => !x.IsConstructor))
+                foreach (var mutation in Tasks)
+                    mutation.Prepare(tDef);
+                for (int i = 0; i < tDef.Methods.Count; i++)
                 {
-                    if (!mDef.HasBody) continue;
-                    for (int i = 0; i < mDef.Body.Instructions.Count; i++)
+                    var mDef = tDef.Methods[i];
+                    if (!mDef.HasBody || mDef.IsConstructor) continue;
+                    mDef.Body.SimplifyBranches();
+                    for (int x = 0; x < mDef.Body.Instructions.Count; x++)
                     {
-                        if (Utils.CheckArithmetic(mDef.Body.Instructions[i]))
+                        if (Utils.CheckArithmetic(mDef.Body.Instructions[x]))
                         {
-                            var rndshit = Tasks[Runtime.Random.Next(Tasks.Count)];
-                            rndshit.Process(mDef, ref i);
+                            var rndshit = Tasks[RuntimeHelper.Random.Next(Tasks.Count)];
+                            rndshit.Process(mDef, ref x);
                         }
                     }
+                    mDef.Body.OptimizeBranches();
                 }
             }
         }

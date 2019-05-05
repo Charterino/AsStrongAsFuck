@@ -15,7 +15,6 @@ namespace AsStrongAsFuck
             Console.Write("Input an assembly: ");
             string path = Console.ReadLine();
             Worker = new Worker(path);
-            Runtime.Random = new OwnRandom();
             Console.WriteLine("Choose options to obfuscate: ");
 
             for (int i = 0; i < Worker.Obfuscations.Count; i++)

@@ -13,7 +13,7 @@ namespace AsStrongAsFuck
         {
             foreach (var type in md.Types)
             {
-                var shit = Runtime.GetRandomName();
+                var shit = Renamer.GetRandomName();
                 Logger.LogMessage("Renaming " + type.Name + " namespace to ", shit, ConsoleColor.Red);
                 type.Namespace = shit;
             }

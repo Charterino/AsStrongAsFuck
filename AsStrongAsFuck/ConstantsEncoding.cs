@@ -1,3 +1,4 @@
+using AsStrongAsFuck.Runtime;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using dnlib.PE;
@@ -18,21 +19,22 @@ namespace AsStrongAsFuck
 
         public void Execute(ModuleDefMD md)
         {
-            FieldDef field = Runtime.GetStaticField("array");
-            field.Name = Runtime.GetRandomName();
+            var consttype = RuntimeHelper.GetRuntimeType("AsStrongAsFuck.Runtime.Constants");
+            FieldDef field = consttype.FindField("array");
+            Renamer.Rename(field, Renamer.RenameMode.Base64, 2);
             field.DeclaringType = null;
             foreach (TypeDef type in md.Types)
                 foreach (MethodDef method in type.Methods)
                     if (method.HasBody && method.Body.HasInstructions)
                         ExtractStrings(method);
             md.GlobalType.Fields.Add(field);
-            MethodDef todef = Runtime.GetStaticMethod("Get");
+            MethodDef todef = consttype.FindMethod("Get");
             todef.DeclaringType = null;
             todef.Body.Instructions[8].Operand = field;
-            todef.Name = Runtime.GetRandomName();
+            Renamer.Rename(todef, Renamer.RenameMode.Logical);
             md.GlobalType.Methods.Add(todef);
-            MethodDef init = Runtime.GetStaticMethod("Initialize");
-            MethodDef add = Runtime.GetStaticMethod("Set");
+            MethodDef init = consttype.FindMethod("Initialize");
+            MethodDef add = consttype.FindMethod("Set");
             init.DeclaringType = null;
             init.Body.Instructions[3].Operand = field;
             List<Instruction> insts = new List<Instruction>(add.Body.Instructions);
@@ -56,7 +58,7 @@ namespace AsStrongAsFuck
             }
             init.Body.Instructions[init.Body.Instructions.Count - 1 - 1].Operand = field;
             init.Body.Instructions[init.Body.Instructions.Count - 1 - 99].Operand = field;
-            init.Name = Runtime.GetRandomName();
+            Renamer.Rename(init, Renamer.RenameMode.Base64, 2);
             md.GlobalType.Methods.Add(init);
             Decryptor = todef;
             MethodDef cctor = md.GlobalType.FindOrCreateStaticConstructor();
@@ -73,21 +75,19 @@ namespace AsStrongAsFuck
 
         public void ReferenceReplace(MethodDef method)
         {
+            method.Body.SimplifyBranches();
             if (Keys.ContainsKey(method.RVA))
             {
                 List<Tuple<int, int, int>> keys = Keys[method.RVA];
                 keys.Reverse();
                 foreach (Tuple<int, int, int> v in keys)
                 {
-                    method.Body.Instructions[v.Item1].OpCode = OpCodes.Call;
-                    method.Body.Instructions[v.Item1].Operand = this.Decryptor;
-
-                    method.Body.Instructions.Insert(v.Item1, new Instruction(OpCodes.Ldc_I4, v.Item3));
-                    method.Body.Instructions.Insert(v.Item1, new Instruction(OpCodes.Ldc_I4, v.Item2));
-                    method.Body.Instructions.Insert(v.Item1, new Instruction(OpCodes.Ldstr, "AsStrongAsFuck - Obfuscator by Charter (vk.com/violent_0)"));
+                    method.Body.Instructions[v.Item1].Operand = "AsStrongAsFuck - Obfuscator by Charter (vk.com/violent_0)";
+                    method.Body.Instructions.Insert(v.Item1 + 1, new Instruction(OpCodes.Ldc_I4, v.Item2));
+                    method.Body.Instructions.Insert(v.Item1 + 2, new Instruction(OpCodes.Ldc_I4, v.Item3));
+                    method.Body.Instructions.Insert(v.Item1 + 3, new Instruction(OpCodes.Call, Decryptor));
                 }
             }
-            method.Body.SimplifyBranches();
             method.Body.OptimizeBranches();
         }
 

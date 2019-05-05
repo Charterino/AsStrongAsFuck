@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
+using static AsStrongAsFuck.Renamer;
 
 namespace AsStrongAsFuck
 {
@@ -52,7 +53,7 @@ namespace AsStrongAsFuck
                 if (instr.OpCode == OpCodes.Call)
                 {
                     var target = (IMethod)instr.Operand;
-                    if (!target.ResolveMethodDefThrow().IsPublic || target.ResolveMethodDef().Name.StartsWith("get_") || target.ResolveMethodDef().Name.StartsWith("set_"))
+                    if (!target.ResolveMethodDefThrow().IsPublic)
                         continue;
 
 
@@ -61,11 +62,18 @@ namespace AsStrongAsFuck
                     var key = new Tuple<Code, TypeDef, IMethod>(instr.OpCode.Code, method.DeclaringType, target);
                     if (!Proxies.TryGetValue(key, out value))
                     {
-                        var proxy = new MethodDefUser(Runtime.GetRandomName(), sig);
+                        var proxy = new MethodDefUser(Renamer.GetRandomName(), sig);
+                        if (target.ResolveMethodDefThrow().DeclaringType == method.DeclaringType && !target.ResolveMethodDefThrow().IsStatic)
+                        {
+                            proxy.IsStatic = false;
+                            sig.HasThis = true;
+                            sig.Params.RemoveAt(0);
+                        }
                         proxy.Attributes = MethodAttributes.PrivateScope | MethodAttributes.Static;
                         proxy.ImplAttributes = MethodImplAttributes.Managed | MethodImplAttributes.IL;
                         method.DeclaringType.Methods.Add(proxy);
-                        var type = CreateDelegateType(sig);
+
+                        var type = CreateDelegateType(sig, target.ResolveMethodDef().IsStatic);
                         
                         proxy.Body = new CilBody();
 
@@ -75,8 +83,12 @@ namespace AsStrongAsFuck
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Dup));
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
-                            for (int x = 1; x < proxy.Parameters.Count; x++)
-                                proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
+                            if (!target.ResolveMethodDefThrow().IsStatic)
+                                for (int x = 0; x < proxy.Parameters.Count; x++)
+                                    proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
+                            else
+                                for (int x = 0; x < proxy.Parameters.Count; x++)
+                                    proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
                         }
@@ -130,9 +142,9 @@ namespace AsStrongAsFuck
             return retTypeRef;
         }
 
-        protected TypeDef CreateDelegateType(MethodSig sig)
+        protected TypeDef CreateDelegateType(MethodSig sig, bool stat)
         {
-            TypeDef ret = new TypeDefUser("AsStrongAsFuck" + Runtime.GetRandomName(), Runtime.GetRandomName() + Runtime.GetChineseString(20), Module.CorLibTypes.GetTypeRef("System", "MulticastDelegate"));
+            TypeDef ret = new TypeDefUser("AsStrongAsFuck", Renamer.GetEndName(RenameMode.Base64, 3, 20), Module.CorLibTypes.GetTypeRef("System", "MulticastDelegate"));
             ret.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
 
             var ctor = new MethodDefUser(".ctor", MethodSig.CreateInstance(Module.CorLibTypes.Void, Module.CorLibTypes.Object, Module.CorLibTypes.IntPtr));
@@ -142,13 +154,11 @@ namespace AsStrongAsFuck
 
             var clone = sig.Clone();
 
-            if (clone.HasThis && clone.ExplicitThis)
+            if (stat)
             {
                 if (clone.Params.Count > 0)
                     clone.Params.RemoveAt(0);
             }
-
-
             var invoke = new MethodDefUser("Invoke", clone);
             invoke.MethodSig.HasThis = true;
             invoke.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.Virtual | MethodAttributes.NewSlot;

@@ -1,4 +1,5 @@
-﻿using dnlib.DotNet;
+﻿using AsStrongAsFuck.Runtime;
+using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using dnlib.PE;
 using System;
@@ -29,8 +30,9 @@ namespace AsStrongAsFuck.Mutations
 
         public FieldDef AddNumberField(int num)
         {
-            FieldDef field = Runtime.GetStaticField("val");
-            field.Name = "AsStrongAsFuck" + Runtime.GetRandomName();
+            var cstype = RuntimeHelper.GetRuntimeType("AsStrongAsFuck.Runtime.NumbersToModule");
+            FieldDef field = cstype.FindField("val");
+            Renamer.Rename(field, Renamer.RenameMode.Base64, 2);
             field.DeclaringType = null;
             Module.GlobalType.Fields.Add(field);
 

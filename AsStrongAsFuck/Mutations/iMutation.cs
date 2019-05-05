@@ -7,5 +7,6 @@ namespace AsStrongAsFuck.Mutations
     public interface iMutation
     {
         void Process(MethodDef method, ref int index);
+        void Prepare(TypeDef type);
     }
 }

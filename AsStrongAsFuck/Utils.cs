@@ -1,4 +1,5 @@
-﻿using dnlib.DotNet.Emit;
+﻿using AsStrongAsFuck.Runtime;
+using dnlib.DotNet.Emit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace AsStrongAsFuck
         {
             for (int i = list.Count - 1; i > 1; i--)
             {
-                int k = Runtime.Random.Next(i + 1);
+                int k = RuntimeHelper.Random.Next(i + 1);
                 T tmp = list[k];
                 list[k] = list[i];
                 list[i] = tmp;
@@ -29,7 +30,5 @@ namespace AsStrongAsFuck
                 return false;
             return true;
         }
-
-        public static double GetY(double x) => (x / 2);
     }
 }

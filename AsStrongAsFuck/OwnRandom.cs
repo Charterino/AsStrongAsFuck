@@ -52,5 +52,16 @@ namespace AsStrongAsFuck
         {
             return (uint)Next() * 2;
         }
+
+        public void Shuffle<T>(IList<T> list)
+        {
+            for (int i = list.Count - 1; i > 1; i--)
+            {
+                int k = Next(i + 1);
+                T tmp = list[k];
+                list[k] = list[i];
+                list[i] = tmp;
+            }
+        }
     }
 }

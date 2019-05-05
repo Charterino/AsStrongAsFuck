@@ -11,7 +11,7 @@ namespace AsStrongAsFuck
     {
         public void Execute(ModuleDefMD md)
         {
-            string shit = Runtime.GetRandomName();
+            string shit = Renamer.GetRandomName();
             Logger.LogMessage("Renaming module to ", shit, ConsoleColor.Red);
             md.Name = shit;
         }
