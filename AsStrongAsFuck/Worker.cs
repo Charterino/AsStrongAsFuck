@@ -1,4 +1,5 @@
-﻿using dnlib.DotNet;
+﻿using AsStrongAsFuck.Runtime;
+using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using dnlib.DotNet.Writer;
 using System;
@@ -25,6 +26,7 @@ namespace AsStrongAsFuck
             LoadModuleDefMD();
             LoadObfuscations();
             LoadDependencies();
+            RuntimeHelper.Importer = new Importer(Module);
         }
 
         public void Watermark()

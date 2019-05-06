@@ -17,6 +17,7 @@ namespace AsStrongAsFuck.Mutations
             new Add(),
             new Sub(),
             new Div(),
+            //Issue: Mul mutation takes a lot of time because of `While` loop. Funcs.cs#51
             new Mul(),
             new StringLen(),
             new Abs(),
