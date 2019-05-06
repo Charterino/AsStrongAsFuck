@@ -25,7 +25,8 @@ namespace AsStrongAsFuck.ControlFlow
             block = new Block();
             foreach (Instruction instruction in method.Body.Instructions)
             {
-                instruction.CalculateStackUsage(out int stacks, out int pops);
+                int stacks, pops;
+                instruction.CalculateStackUsage(out stacks, out pops);
                 block.Instructions.Add(instruction);
                 usage += stacks - pops;
                 if (stacks == 0)
