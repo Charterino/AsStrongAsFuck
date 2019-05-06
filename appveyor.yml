@@ -1,10 +1,9 @@
 version: 1.0.{build}
-after_build:
-  - 7z a bin.zip Debug\bin\*
-artifacts:
-  - path: bin.zip
-    name: bin
 
+artifacts:
+- path: AsStrongAsFuck/bin/Debug
+  name: bin
+  type: zip
 
 on_success:
   - ps: Invoke-RestMethod https://raw.githubusercontent.com/DiscordHooks/appveyor-discord-webhook/master/send.ps1 -o send.ps1
