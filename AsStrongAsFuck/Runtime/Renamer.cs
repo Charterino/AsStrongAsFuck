@@ -31,7 +31,6 @@ namespace AsStrongAsFuck
             {
                 case RenameMode.Base64:
                     return GetRandomName().Base64Representation();
-                    break;
                 case RenameMode.Chinese:
                     return GetChineseString(length);
                 case RenameMode.Invalid:
