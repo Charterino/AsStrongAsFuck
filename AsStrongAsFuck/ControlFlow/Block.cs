@@ -9,19 +9,11 @@ namespace AsStrongAsFuck.ControlFlow
 {
     public class Block
     {
-        public Block(List<Instruction> instrs, int number)
+        public Block()
         {
-            Instructions = instrs;
-            Number = number;
-            Condition = Instructions.Last();
-            FirstInstruction = Instructions.First();
+            Instructions = new List<Instruction>();
         }
-
         public List<Instruction> Instructions { get; set; }
-
-        public Instruction Condition { get; set; }
-
-        public Instruction FirstInstruction { get; set; }
 
         public int Number { get; set; }
     }

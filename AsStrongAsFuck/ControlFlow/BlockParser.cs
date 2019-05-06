@@ -15,22 +15,30 @@ namespace AsStrongAsFuck.ControlFlow
             List<Block> blocks = new List<Block>();
             List<Instruction> body = new List<Instruction>(method.Body.Instructions);
 
-            //splitting into blocks
-            while (body.Count > 0)
+            //splitting into blocks (Thanks to CodeOfDark#6320)
+            Block block = new Block();
+            int Id = 0;
+            int usage = 0;
+            block.Number = Id;
+            block.Instructions.Add(Instruction.Create(OpCodes.Nop));
+            blocks.Add(block);
+            block = new Block();
+            foreach (Instruction instruction in method.Body.Instructions)
             {
-                for (int i = 1; i < body.Count; i++)
+                instruction.CalculateStackUsage(out int stacks, out int pops);
+                block.Instructions.Add(instruction);
+                usage += stacks - pops;
+                if (stacks == 0)
                 {
-                    var instr = body[i - 1];
-                    if (instr.IsConditionalBranch())
+                    if (instruction.OpCode != OpCodes.Nop)
                     {
-                        blocks.Add(new Block(body.GetRange(0, i + 1), blocks.Count));
-                        body.RemoveRange(0, i + 1);
-                        break;
-                    }
-                    if (i == body.Count - 1)
-                    {
-                        blocks.Add(new Block(body.GetRange(0, i + 1), blocks.Count));
-                        body.RemoveRange(0, i + 1);
+                        if (usage == 0 || instruction.OpCode == OpCodes.Ret)
+                        {
+
+                            block.Number = ++Id;
+                            blocks.Add(block);
+                            block = new Block();
+                        }
                     }
                 }
             }
