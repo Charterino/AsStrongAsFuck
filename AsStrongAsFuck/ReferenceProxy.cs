@@ -13,7 +13,7 @@ namespace AsStrongAsFuck
     {
         public List<uint> AddedDelegates { get; set; }
 
-        public Dictionary<Tuple<Code, TypeDef, IMethod>, Tuple<MethodDef, TypeDef>> Proxies { get; set; }
+        public Dictionary<Tuple<Code, string>, Tuple<MethodDef, TypeDef>> Proxies { get; set; }
 
         public ModuleDef Module { get; set; }
         public int SumCount { get; set; }
@@ -29,13 +29,20 @@ namespace AsStrongAsFuck
                 var type = md.Types[k];
                 if (!AddedDelegates.Contains(type.Rid) && type != md.GlobalType)
                 {
-                    Proxies = new Dictionary<Tuple<Code, TypeDef, IMethod>, Tuple<MethodDef, TypeDef>>();
+                    Proxies = new Dictionary<Tuple<Code, string>, Tuple<MethodDef, TypeDef>>();
                     for (int i = 0; i < type.Methods.Count; i++)
                     {
                         var method = type.Methods[i];
                         if (method.HasBody && method.Body.HasInstructions && !Proxies.Values.Any(x => x.Item1 == method) && !method.Name.Contains("ctor"))
                         {
-                            ProcessMethod(method);
+                            try
+                            {
+                                ProcessMethod(method);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogMessage($"Couldn't add refproxy to {method.Name}:", ex.ToString(), ConsoleColor.Red);
+                            }
                         }
                     }
                     Logger.LogMessage("Added " + Proxies.Count + " reference proxy to ", type.Name, ConsoleColor.Cyan);
@@ -53,57 +60,31 @@ namespace AsStrongAsFuck
                 if (instr.OpCode == OpCodes.Call)
                 {
                     var target = (IMethod)instr.Operand;
-                    if (!target.ResolveMethodDefThrow().IsPublic)
+                    if (!target.ResolveMethodDefThrow().IsPublic || !target.ResolveMethodDefThrow().IsStatic)
                         continue;
-
-
-                    MethodSig sig = CreateProxySignature(target);
+                    
                     Tuple<MethodDef, TypeDef> value;
-                    var key = new Tuple<Code, TypeDef, IMethod>(instr.OpCode.Code, method.DeclaringType, target);
+                    var key = new Tuple<Code, string>(instr.OpCode.Code, target.FullName);
                     if (!Proxies.TryGetValue(key, out value))
                     {
+                        MethodSig sig = CreateProxySignature(target);
                         var proxy = new MethodDefUser(Renamer.GetRandomName(), sig);
-                        if (target.ResolveMethodDefThrow().DeclaringType == method.DeclaringType && !target.ResolveMethodDefThrow().IsStatic)
-                        {
-                            proxy.IsStatic = false;
-                            sig.HasThis = true;
-                            sig.Params.RemoveAt(0);
-                        }
+
                         proxy.Attributes = MethodAttributes.PrivateScope | MethodAttributes.Static;
                         proxy.ImplAttributes = MethodImplAttributes.Managed | MethodImplAttributes.IL;
+
                         method.DeclaringType.Methods.Add(proxy);
 
-                        var type = CreateDelegateType(sig, target.ResolveMethodDef().IsStatic);
+                        var type = CreateDelegateType(sig);
                         
                         proxy.Body = new CilBody();
-
-                        if (!target.ResolveMethodDef().IsStatic)
-                        {
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Dup));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
-                            if (!target.ResolveMethodDefThrow().IsStatic)
-                                for (int x = 0; x < proxy.Parameters.Count; x++)
-                                    proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
-                            else
-                                for (int x = 0; x < proxy.Parameters.Count; x++)
-                                    proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
-                        }
-                        else
-                        {
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldnull));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
-                            for (int x = 0; x < proxy.Parameters.Count; x++)
-                                proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
-                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
-                        }
-
-                        
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldnull));
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
+                        for (int x = 0; x < target.ResolveMethodDefThrow().Parameters.Count; x++)
+                            proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
                         AddedDelegates.Add(type.Rid);
                         value = new Tuple<MethodDef, TypeDef>(proxy, type);
@@ -142,7 +123,7 @@ namespace AsStrongAsFuck
             return retTypeRef;
         }
 
-        protected TypeDef CreateDelegateType(MethodSig sig, bool stat)
+        protected TypeDef CreateDelegateType(MethodSig sig)
         {
             TypeDef ret = new TypeDefUser("AsStrongAsFuck", Renamer.GetEndName(RenameMode.Base64, 3, 20), Module.CorLibTypes.GetTypeRef("System", "MulticastDelegate"));
             ret.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
@@ -153,12 +134,7 @@ namespace AsStrongAsFuck
             ret.Methods.Add(ctor);
 
             var clone = sig.Clone();
-
-            if (stat)
-            {
-                if (clone.Params.Count > 0)
-                    clone.Params.RemoveAt(0);
-            }
+            
             var invoke = new MethodDefUser("Invoke", clone);
             invoke.MethodSig.HasThis = true;
             invoke.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.Virtual | MethodAttributes.NewSlot;
