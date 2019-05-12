@@ -43,7 +43,9 @@ namespace AsStrongAsFuck.ControlFlow
                     }
                 }
             }
+
             return blocks;
         }
+
     }
 }
