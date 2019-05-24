@@ -69,7 +69,6 @@
     <Compile Include="Runtime\Constants.cs" />
     <Compile Include="Runtime\FuncMutation.cs" />
     <Compile Include="Runtime\NumbersToModule.cs" />
-    <Compile Include="Runtime\Packer.cs" />
     <Compile Include="Runtime\RefProxy.cs" />
     <Compile Include="Runtime\Renamer.cs" />
     <Compile Include="Runtime\RuntimeHelper.cs" />
