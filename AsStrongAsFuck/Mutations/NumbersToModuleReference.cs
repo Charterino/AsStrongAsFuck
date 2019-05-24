@@ -48,7 +48,8 @@ namespace AsStrongAsFuck.Mutations
                 if (instr.IsLdcI4())
                 {
                     var val = instr.GetLdcI4Value();
-                    if (!Numbers.TryGetValue(val, out FieldDef fld))
+                    FieldDef fld;
+                    if (!Numbers.TryGetValue(val, out fld))
                     {
                         fld = AddNumberField(val);
                         Numbers.Add(val, fld);
