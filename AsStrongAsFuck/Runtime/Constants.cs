@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -12,7 +13,18 @@ namespace AsStrongAsFuck.Runtime
     {
         public static string Get(string one, int key, int len)
         {
+            StackTrace trace = new StackTrace();
+            var data = Encoding.Default.GetBytes(trace.GetFrame(1).GetMethod().Name);
+            const int p = 16777619;
+            int hash = -2128831035;
+
+            for (int i = 0; i < data.Length; i++)
+                hash = (hash ^ data[i]) * p;
+
+            hash += hash << 13;
+            hash ^= hash >> 7;
             List<byte> shit = new List<byte>();
+            key += hash;
             for (int i = 0; i < len; i++)
             {
                 shit.Add(array[key + i]);

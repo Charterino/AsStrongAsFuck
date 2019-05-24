@@ -30,7 +30,7 @@ namespace AsStrongAsFuck
             md.GlobalType.Fields.Add(field);
             MethodDef todef = consttype.FindMethod("Get");
             todef.DeclaringType = null;
-            todef.Body.Instructions[8].Operand = field;
+            todef.Body.Instructions[59].Operand = field;
             Renamer.Rename(todef, Renamer.RenameMode.Logical);
             md.GlobalType.Methods.Add(todef);
             MethodDef init = consttype.FindMethod("Initialize");
@@ -105,7 +105,18 @@ namespace AsStrongAsFuck
                     {
                         array.Add(v);
                     }
-                    shit.Add(new Tuple<int, int, int>(method.Body.Instructions.IndexOf(instr), CurrentIndex, bytes.Length));
+                    var curname = Encoding.Default.GetBytes(method.Name);
+
+                    const int p = 16777619;
+                    int hash = -2128831035;
+
+                    for (int i = 0; i < curname.Length; i++)
+                        hash = (hash ^ curname[i]) * p;
+
+                    hash += hash << 13;
+                    hash ^= hash >> 7;
+
+                    shit.Add(new Tuple<int, int, int>(method.Body.Instructions.IndexOf(instr), CurrentIndex - hash, bytes.Length));
                     CurrentIndex += bytes.Length;
                 }
             }
