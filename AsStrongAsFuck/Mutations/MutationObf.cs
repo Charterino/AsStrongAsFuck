@@ -18,11 +18,13 @@ namespace AsStrongAsFuck.Mutations
             new Sub(),
             new Div(),
             //Issue: Mul mutation takes a lot of time because of `While` loop. Funcs.cs#51
-            new Mul(),
+            //new Mul(),
             new StringLen(),
             new Abs(),
             new Func(),
-            new CharMutations()
+            new CharMutations(),
+            new VariableMutation(),
+            new ComparerMutation()
         };
 
 
@@ -47,7 +49,6 @@ namespace AsStrongAsFuck.Mutations
                             rndshit.Process(mDef, ref x);
                         }
                     }
-                    mDef.Body.OptimizeBranches();
                 }
             }
         }

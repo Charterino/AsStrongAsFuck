@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AsStrongAsFuck.Helpers;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using static AsStrongAsFuck.Renamer;
@@ -62,12 +63,12 @@ namespace AsStrongAsFuck
                     var target = (IMethod)instr.Operand;
                     if (!target.ResolveMethodDefThrow().IsPublic || !target.ResolveMethodDefThrow().IsStatic)
                         continue;
-                    
+
                     Tuple<MethodDef, TypeDef> value;
                     var key = new Tuple<Code, string>(instr.OpCode.Code, target.FullName);
                     if (!Proxies.TryGetValue(key, out value))
                     {
-                        MethodSig sig = CreateProxySignature(target);
+                        MethodSig sig = ReferenceProxyHelper.CreateProxySignature(target, Module);
                         var proxy = new MethodDefUser(Renamer.GetRandomName(), sig);
 
                         proxy.Attributes = MethodAttributes.PrivateScope | MethodAttributes.Static;
@@ -75,7 +76,7 @@ namespace AsStrongAsFuck
 
                         method.DeclaringType.Methods.Add(proxy);
 
-                        var type = CreateDelegateType(sig);
+                        var type = ReferenceProxyHelper.CreateDelegateType(sig, Module);
                         
                         proxy.Body = new CilBody();
                         proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldnull));
@@ -101,48 +102,6 @@ namespace AsStrongAsFuck
             instrs.Reverse();
             foreach (var instr in instrs)
                 def.Body.Instructions.Insert(state, instr);
-        }
-
-        protected MethodSig CreateProxySignature(IMethod method)
-        {
-            List<TypeSig> paramTypes = method.MethodSig.Params.ToList();
-            if (method.MethodSig.HasThis && !method.MethodSig.ExplicitThis)
-            {
-                TypeDef declType = method.DeclaringType.ResolveTypeDefThrow();
-                paramTypes.Insert(0, Import(Module, declType).ToTypeSig());
-            }
-            TypeSig retType = method.MethodSig.RetType;
-            if (retType.IsClassSig)
-                retType = Module.CorLibTypes.Object;
-            return MethodSig.CreateStatic(retType, paramTypes.ToArray());
-        }
-
-        public static ITypeDefOrRef Import(ModuleDef module, TypeDef typeDef)
-        {
-            ITypeDefOrRef retTypeRef = new Importer(module, ImporterOptions.TryToUseTypeDefs).Import(typeDef);
-            return retTypeRef;
-        }
-
-        protected TypeDef CreateDelegateType(MethodSig sig)
-        {
-            TypeDef ret = new TypeDefUser("AsStrongAsFuck", Renamer.GetEndName(RenameMode.Base64, 3, 20), Module.CorLibTypes.GetTypeRef("System", "MulticastDelegate"));
-            ret.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
-
-            var ctor = new MethodDefUser(".ctor", MethodSig.CreateInstance(Module.CorLibTypes.Void, Module.CorLibTypes.Object, Module.CorLibTypes.IntPtr));
-            ctor.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.RTSpecialName | MethodAttributes.SpecialName;
-            ctor.ImplAttributes = MethodImplAttributes.Runtime;
-            ret.Methods.Add(ctor);
-
-            var clone = sig.Clone();
-            
-            var invoke = new MethodDefUser("Invoke", clone);
-            invoke.MethodSig.HasThis = true;
-            invoke.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.Virtual | MethodAttributes.NewSlot;
-            invoke.ImplAttributes = MethodImplAttributes.Runtime;
-            ret.Methods.Add(invoke);
-            Module.Types.Add(ret);
-
-            return ret;
         }
     }
 }

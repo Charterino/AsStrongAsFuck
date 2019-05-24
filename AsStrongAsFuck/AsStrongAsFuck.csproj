@@ -52,6 +52,7 @@
     <Compile Include="ControlFlow\BlockParser.cs" />
     <Compile Include="ControlFlow\ControlFlowObfuscation.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="Helpers\ReferenceProxyHelper.cs" />
     <Compile Include="IObfuscation.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="ModuleRenaming.cs" />
@@ -68,6 +69,8 @@
     <Compile Include="Runtime\Constants.cs" />
     <Compile Include="Runtime\FuncMutation.cs" />
     <Compile Include="Runtime\NumbersToModule.cs" />
+    <Compile Include="Runtime\Packer.cs" />
+    <Compile Include="Runtime\RefProxy.cs" />
     <Compile Include="Runtime\Renamer.cs" />
     <Compile Include="Runtime\RuntimeHelper.cs" />
     <Compile Include="Utils.cs" />

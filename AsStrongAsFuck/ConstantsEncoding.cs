@@ -113,7 +113,6 @@ namespace AsStrongAsFuck
                 Keys.Add(method.RVA, shit);
         }
 
-
         public static byte[] Compress(byte[] data)
         {
             MemoryStream ms = new MemoryStream();

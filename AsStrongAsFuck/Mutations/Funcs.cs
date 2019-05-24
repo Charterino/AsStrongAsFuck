@@ -168,4 +168,92 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Call, Converter));
         }
     }
+
+    public class VariableMutation : iMutation
+    {
+        public void Prepare(TypeDef type) { }
+
+        public void Process(MethodDef method, ref int index)
+        {
+            var value = method.Body.Instructions[index].GetLdcI4Value();
+            Local lcl = new Local(method.Module.CorLibTypes.Int32);
+            method.Body.Variables.Add(lcl);
+            method.Body.Instructions.Insert(0, new Instruction(OpCodes.Stloc, lcl));
+            method.Body.Instructions.Insert(0, new Instruction(OpCodes.Ldc_I4, value));
+            index += 2;
+            method.Body.Instructions[index] = new Instruction(OpCodes.Ldloc, lcl);
+        }
+    }
+
+    public class ComparerMutation : iMutation
+    {
+        public void Prepare(TypeDef type)
+        {
+            if (type != type.Module.GlobalType)
+                for (int i = 0; i < type.Methods.Count; i++)
+                {
+                    var mDef = type.Methods[i];
+                    if (!mDef.HasBody || mDef.IsConstructor) continue;
+                    mDef.Body.SimplifyBranches();
+                    for (int x = 0; x < mDef.Body.Instructions.Count; x++)
+                    {
+                        if (Utils.CheckArithmetic(mDef.Body.Instructions[x]))
+                        {
+                            Execute(mDef, ref x);
+                        }
+                    }
+                }
+        }
+
+        public void Execute(MethodDef method, ref int index)
+        {
+            if (method.Body.Instructions[index].OpCode != OpCodes.Call)
+            {
+                var value = method.Body.Instructions[index].GetLdcI4Value();
+                Local lcl = new Local(method.Module.CorLibTypes.Int32);
+                method.Body.Variables.Add(lcl);
+
+                var initial = RuntimeHelper.Random.Next();
+
+                var ifstate = RuntimeHelper.Random.Next();
+
+                while (ifstate == initial)
+                {
+                    ifstate = RuntimeHelper.Random.Next();
+                }
+
+                method.Body.Instructions[index] = Instruction.CreateLdcI4(initial);
+
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Stloc, lcl));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldloc, lcl));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, ifstate));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ceq));
+                Instruction nop = OpCodes.Nop.ToInstruction();
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Brtrue, nop));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Nop));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, value));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Stloc, lcl));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Nop));
+                Instruction ldloc = OpCodes.Ldloc_S.ToInstruction(lcl);
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Br, ldloc));
+                method.Body.Instructions.Insert(++index, nop);
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, RuntimeHelper.Random.Next()));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Stloc, lcl));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Nop));
+                method.Body.Instructions.Insert(++index, ldloc);
+            }
+        }
+
+        public void Process(MethodDef method, ref int index) { }
+
+        public static void InsertInstructions(IList<Instruction> instructions, Dictionary<Instruction, int> keyValuePairs)
+        {
+            foreach (KeyValuePair<Instruction, int> kv in keyValuePairs)
+            {
+                Instruction instruction = kv.Key;
+                int index = kv.Value;
+                instructions.Insert(index, instruction);
+            }
+        }
+    }
 }

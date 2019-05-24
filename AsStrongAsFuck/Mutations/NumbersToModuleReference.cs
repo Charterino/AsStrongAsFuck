@@ -22,10 +22,7 @@ namespace AsStrongAsFuck.Mutations
             Module = md;
             foreach (var type in md.Types.Where(x => x != md.GlobalType))
                 foreach (var method in type.Methods.Where(x => !x.IsConstructor && x.HasBody && x.Body.HasInstructions))
-                    ExtractNumbers(method);
-            foreach (var type in md.Types.Where(x => x != md.GlobalType))
-                foreach (var method in type.Methods.Where(x => !x.IsConstructor && x.HasBody && x.Body.HasInstructions))
-                    ReplaceReferences(method);
+                    ExecuteMethod(method);
         }
 
         public FieldDef AddNumberField(int num)
@@ -42,7 +39,8 @@ namespace AsStrongAsFuck.Mutations
             return field;
         }
 
-        public void ExtractNumbers(MethodDef method)
+        //thanks to mighty
+        public void ExecuteMethod(MethodDef method)
         {
             for (int i = 0; i < method.Body.Instructions.Count; i++)
             {
@@ -50,23 +48,11 @@ namespace AsStrongAsFuck.Mutations
                 if (instr.IsLdcI4())
                 {
                     var val = instr.GetLdcI4Value();
-                    if (!Numbers.ContainsKey(val))
+                    if (!Numbers.TryGetValue(val, out FieldDef fld))
                     {
-                        Numbers.Add(val, AddNumberField(val));
+                        fld = AddNumberField(val);
+                        Numbers.Add(val, fld);
                     }
-                }
-            }
-        }
-
-        public void ReplaceReferences(MethodDef method)
-        {
-            for (int i = 0; i < method.Body.Instructions.Count; i++)
-            {
-                var instr = method.Body.Instructions[i];
-                if (instr.IsLdcI4())
-                {
-                    var val = instr.GetLdcI4Value();
-                    var fld = Numbers[val];
                     instr.OpCode = OpCodes.Ldsfld;
                     instr.Operand = fld;
                 }

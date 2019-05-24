@@ -15,6 +15,9 @@ namespace AsStrongAsFuck
     {
         private Assembly OwnAssembly => this.GetType().Assembly;
         public Assembly Default_Assembly { get; set; }
+
+        public AssemblyDef Assembly { get; set; }
+
         public ModuleDefMD Module { get; set; }
         public string Path { get; set; }
 
@@ -76,7 +79,7 @@ namespace AsStrongAsFuck
         public void LoadAssembly()
         {
             Console.Write("Loading assembly...");
-            Default_Assembly = Assembly.UnsafeLoadFrom(Path);
+            Default_Assembly = System.Reflection.Assembly.UnsafeLoadFrom(Path);
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(" Loaded: ");
             Console.WriteLine(Default_Assembly.FullName);
@@ -87,6 +90,7 @@ namespace AsStrongAsFuck
         {
             Console.Write("Loading ModuleDefMD...");
             Module = ModuleDefMD.Load(Path);
+            Assembly = Module.Assembly;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(" Loaded: ");
             Console.WriteLine(Module.FullName);
@@ -119,7 +123,7 @@ namespace AsStrongAsFuck
             Logger.LogMessage("Saving as ", Path + ".obfuscated", ConsoleColor.Yellow);
             ModuleWriterOptions opts = new ModuleWriterOptions(Module);
             opts.Logger = DummyLogger.NoThrowInstance;
-            Module.Write(Path + ".obfuscated", opts);
+            Assembly.Write(Path + ".obfuscated", opts);
             Console.WriteLine("Saved.");
         }
 
