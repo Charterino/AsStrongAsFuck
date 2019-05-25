@@ -47,7 +47,8 @@ namespace AsStrongAsFuck
                         continue;
 
                     var key = target.FullName;
-                    if (!Proxies.TryGetValue(key, out MethodDef value))
+                    MethodDef value;
+                    if (!Proxies.TryGetValue(key, out value))
                     {
                         var consttype = RuntimeHelper.GetRuntimeType("AsStrongAsFuck.Runtime.RefProxy");
 
