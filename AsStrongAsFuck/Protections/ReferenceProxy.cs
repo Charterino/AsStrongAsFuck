@@ -18,6 +18,7 @@ namespace AsStrongAsFuck
 
         public void Execute(ModuleDefMD md)
         {
+            int sum = 0;
             for (int i = 0; i < md.Types.Count; i++)
             {
                 var tdef = md.Types[i];
@@ -30,9 +31,12 @@ namespace AsStrongAsFuck
                         mdef.Body.SimplifyBranches();
                         ExecuteMethod(mdef);
                     }
+                    sum += Proxies.Count;
+
                 }
                 tdef.FindOrCreateStaticConstructor().Body.Instructions.Add(new Instruction(OpCodes.Ret));
             }
+            Console.WriteLine($"Added {sum} ref proxies.");
         }
 
         public void ExecuteMethod(MethodDef method)
