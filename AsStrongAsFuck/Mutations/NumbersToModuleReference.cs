@@ -47,15 +47,18 @@ namespace AsStrongAsFuck.Mutations
                 var instr = method.Body.Instructions[i];
                 if (instr.IsLdcI4())
                 {
-                    var val = instr.GetLdcI4Value();
-                    FieldDef fld;
-                    if (!Numbers.TryGetValue(val, out fld))
+                    if (Module.GlobalType.Fields.Count < 65000)
                     {
-                        fld = AddNumberField(val);
-                        Numbers.Add(val, fld);
+                        var val = instr.GetLdcI4Value();
+                        FieldDef fld;
+                        if (!Numbers.TryGetValue(val, out fld))
+                        {
+                            fld = AddNumberField(val);
+                            Numbers.Add(val, fld);
+                        }
+                        instr.OpCode = OpCodes.Ldsfld;
+                        instr.Operand = fld;
                     }
-                    instr.OpCode = OpCodes.Ldsfld;
-                    instr.Operand = fld;
                 }
             }
         }

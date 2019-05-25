@@ -7,15 +7,13 @@ using dnlib.DotNet;
 
 namespace AsStrongAsFuck
 {
-    public class RandomNamespaces : IObfuscation
+    public class HiddenNamespace : IObfuscation
     {
         public void Execute(ModuleDefMD md)
         {
             foreach (var type in md.Types)
             {
-                var shit = Renamer.GetRandomName();
-                Logger.LogMessage("Renaming " + type.Name + " namespace to ", shit, ConsoleColor.Red);
-                type.Namespace = shit;
+                type.Namespace = "";
             }
         }
     }

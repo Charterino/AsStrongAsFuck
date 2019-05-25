@@ -4,6 +4,7 @@ using dnlib.DotNet.Emit;
 using dnlib.DotNet.Writer;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -58,6 +59,8 @@ namespace AsStrongAsFuck
         {
             Code = param;
             var shit = param.ToCharArray().ToList();
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
             foreach (var v in shit)
             {
                 int i = int.Parse(v.ToString()) - 1;
@@ -74,6 +77,8 @@ namespace AsStrongAsFuck
                     Console.WriteLine(ex);
                 }
             }
+            watch.Stop();
+            Console.WriteLine("Time taken: " + watch.Elapsed.ToString());
         }
 
         public void LoadAssembly()

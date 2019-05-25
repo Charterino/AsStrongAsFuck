@@ -47,15 +47,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ConstantsEncoding.cs" />
-    <Compile Include="ControlFlow\Block.cs" />
-    <Compile Include="ControlFlow\BlockParser.cs" />
-    <Compile Include="ControlFlow\ControlFlowObfuscation.cs" />
+    <Compile Include="Protections\ConstantsEncoding.cs" />
+    <Compile Include="Protections\ControlFlow\Block.cs" />
+    <Compile Include="Protections\ControlFlow\BlockParser.cs" />
+    <Compile Include="Protections\ControlFlow\ControlFlowObfuscation.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Helpers\ReferenceProxyHelper.cs" />
     <Compile Include="IObfuscation.cs" />
     <Compile Include="Logger.cs" />
-    <Compile Include="ModuleRenaming.cs" />
+    <Compile Include="Protections\JunkProtection.cs" />
+    <Compile Include="Protections\ModuleRenaming.cs" />
     <Compile Include="Mutations\Funcs.cs" />
     <Compile Include="Mutations\iMutation.cs" />
     <Compile Include="Mutations\MutationObf.cs" />
@@ -63,9 +64,9 @@
     <Compile Include="OwnRandom.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RandomNamespaces.cs" />
-    <Compile Include="ReferenceProxy.cs" />
-    <Compile Include="RenameObfuscation.cs" />
+    <Compile Include="Protections\HiddenNamespace.cs" />
+    <Compile Include="Protections\ReferenceProxy.cs" />
+    <Compile Include="Protections\RenameObfuscation.cs" />
     <Compile Include="Runtime\Constants.cs" />
     <Compile Include="Runtime\FuncMutation.cs" />
     <Compile Include="Runtime\NumbersToModule.cs" />
