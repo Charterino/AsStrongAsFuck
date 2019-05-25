@@ -4,56 +4,38 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AsStrongAsFuck.Helpers;
+using AsStrongAsFuck.Runtime;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using static AsStrongAsFuck.Renamer;
 
 namespace AsStrongAsFuck
 {
+    //HUUUUUGE THANKS TO MIGHTY!!!
     public class ReferenceProxy : IObfuscation
     {
-        public List<uint> AddedDelegates { get; set; }
-
-        public Dictionary<Tuple<Code, string>, Tuple<MethodDef, TypeDef>> Proxies { get; set; }
-
-        public ModuleDef Module { get; set; }
-        public int SumCount { get; set; }
+        public Dictionary<string, MethodDef> Proxies { get; set; }
 
         public void Execute(ModuleDefMD md)
         {
-            Module = md;
-
-            AddedDelegates = new List<uint>();
-            SumCount = 0;
-            for (int k = 0; k < md.Types.Count; k++)
+            for (int i = 0; i < md.Types.Count; i++)
             {
-                var type = md.Types[k];
-                if (!AddedDelegates.Contains(type.Rid) && type != md.GlobalType)
+                var tdef = md.Types[i];
+                for (int x = 0; x < tdef.Methods.Count; x++)
                 {
-                    Proxies = new Dictionary<Tuple<Code, string>, Tuple<MethodDef, TypeDef>>();
-                    for (int i = 0; i < type.Methods.Count; i++)
+                    var mdef = tdef.Methods[x];
+                    Proxies = new Dictionary<string, MethodDef>();
+                    if (mdef.HasBody && mdef.Body.HasInstructions && !mdef.IsConstructor)
                     {
-                        var method = type.Methods[i];
-                        if (method.HasBody && method.Body.HasInstructions && !Proxies.Values.Any(x => x.Item1 == method) && !method.Name.Contains("ctor"))
-                        {
-                            try
-                            {
-                                ProcessMethod(method);
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.LogMessage($"Couldn't add refproxy to {method.Name}:", ex.ToString(), ConsoleColor.Red);
-                            }
-                        }
+                        mdef.Body.SimplifyBranches();
+                        ExecuteMethod(mdef);
                     }
-                    Logger.LogMessage("Added " + Proxies.Count + " reference proxy to ", type.Name, ConsoleColor.Cyan);
-                    SumCount += Proxies.Count;
                 }
+                tdef.FindOrCreateStaticConstructor().Body.Instructions.Add(new Instruction(OpCodes.Ret));
             }
-            Console.WriteLine("Added " + SumCount + " refproxies to the file.");
         }
 
-        public void ProcessMethod(MethodDef method)
+        public void ExecuteMethod(MethodDef method)
         {
             for (int i = 0; i < method.Body.Instructions.Count; i++)
             {
@@ -61,47 +43,67 @@ namespace AsStrongAsFuck
                 if (instr.OpCode == OpCodes.Call)
                 {
                     var target = (IMethod)instr.Operand;
-                    if (!target.ResolveMethodDefThrow().IsPublic || !target.ResolveMethodDefThrow().IsStatic)
+                    if (!target.ResolveMethodDefThrow().IsPublic || !target.ResolveMethodDefThrow().IsStatic || !target.DeclaringType.ResolveTypeDef().IsPublic || target.DeclaringType.ResolveTypeDef().IsSealed)
                         continue;
 
-                    Tuple<MethodDef, TypeDef> value;
-                    var key = new Tuple<Code, string>(instr.OpCode.Code, target.FullName);
-                    if (!Proxies.TryGetValue(key, out value))
+                    var key = target.FullName;
+                    if (!Proxies.TryGetValue(key, out MethodDef value))
                     {
-                        MethodSig sig = ReferenceProxyHelper.CreateProxySignature(target, Module);
-                        var proxy = new MethodDefUser(Renamer.GetRandomName(), sig);
+                        var consttype = RuntimeHelper.GetRuntimeType("AsStrongAsFuck.Runtime.RefProxy");
+
+                        var proxysig = ReferenceProxyHelper.CreateProxySignature(target, method.Module);
+
+                        var deleg = ReferenceProxyHelper.CreateDelegateType(proxysig, method.Module, target.ResolveMethodDef());
+
+                        FieldDefUser field = new FieldDefUser("Shit", new FieldSig(deleg.ToTypeSig()));
+
+                        Renamer.Rename(field, Renamer.RenameMode.Base64);
+                        method.DeclaringType.Fields.Add(field);
+                        field.IsStatic = true;
+
+                        var typedef = target.ResolveMethodDefThrow().DeclaringType;
+
+                        var mdtoken = target.ResolveMethodDef().MDToken;
+                        var asshole = consttype.Methods.First(x => x.Name == "Load");
+                        asshole.Body.Instructions[1].Operand = deleg;
+                        asshole.Body.Instructions[3].Operand = method.Module.Import(typedef);
+                        asshole.Body.Instructions[6].OpCode = OpCodes.Ldc_I4;
+                        asshole.Body.Instructions[6].Operand = (int)mdtoken.Raw;
+                        asshole.Body.Instructions[10].Operand = deleg;
+                        asshole.Body.Instructions[11].Operand = field;
+                        asshole.Body.Instructions.RemoveAt(12);
+
+                        var cctor = method.DeclaringType.FindOrCreateStaticConstructor();
+                        foreach (var item in asshole.Body.Instructions)
+                        {
+                            cctor.Body.Instructions.Add(item);
+                        }
+
+                        if (cctor.Body.Instructions[0].OpCode == OpCodes.Ret)
+                            cctor.Body.Instructions.RemoveAt(0);
+
+
+                        var proxy = new MethodDefUser(Renamer.GetRandomName(), proxysig);
 
                         proxy.Attributes = MethodAttributes.PrivateScope | MethodAttributes.Static;
                         proxy.ImplAttributes = MethodImplAttributes.Managed | MethodImplAttributes.IL;
 
                         method.DeclaringType.Methods.Add(proxy);
 
-                        var type = ReferenceProxyHelper.CreateDelegateType(sig, Module);
-                        
                         proxy.Body = new CilBody();
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldnull));
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, target));
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, type.FindMethod(".ctor")));
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldsfld, field));
                         for (int x = 0; x < target.ResolveMethodDefThrow().Parameters.Count; x++)
                             proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg, proxy.Parameters[x]));
-                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, type.FindMethod("Invoke")));
+                        proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, deleg.FindMethod("Invoke")));
                         proxy.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
-                        AddedDelegates.Add(type.Rid);
-                        value = new Tuple<MethodDef, TypeDef>(proxy, type);
+                        value = proxy;
                         Proxies.Add(key, value);
                     }
-
-                    instr.Operand = value.Item1;
+                    Console.WriteLine($"{key} - {value}");
+                    instr.Operand = value;
                 }
             }
-        }
-
-        public static void InsertListOfInstructions(List<Instruction> instrs, ref MethodDef def, int state)
-        {
-            instrs.Reverse();
-            foreach (var instr in instrs)
-                def.Body.Instructions.Insert(state, instr);
         }
     }
 }

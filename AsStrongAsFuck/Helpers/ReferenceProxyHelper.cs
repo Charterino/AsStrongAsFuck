@@ -10,10 +10,10 @@ namespace AsStrongAsFuck.Helpers
 {
     public class ReferenceProxyHelper
     {
-        public static TypeDef CreateDelegateType(MethodSig sig, ModuleDef target)
+        public static TypeDef CreateDelegateType(MethodSig sig, ModuleDef target, MethodDef original)
         {
             TypeDef ret = new TypeDefUser("AsStrongAsFuck", Renamer.GetEndName(RenameMode.Base64, 3, 20), target.CorLibTypes.GetTypeRef("System", "MulticastDelegate"));
-            ret.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
+            ret.Attributes = original.DeclaringType.Attributes;
 
             var ctor = new MethodDefUser(".ctor", MethodSig.CreateInstance(target.CorLibTypes.Void, target.CorLibTypes.Object, target.CorLibTypes.IntPtr));
             ctor.Attributes = MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.RTSpecialName | MethodAttributes.SpecialName;
