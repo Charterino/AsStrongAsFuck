@@ -8,5 +8,6 @@ namespace AsStrongAsFuck.Mutations
     {
         void Process(MethodDef method, ref int index);
         void Prepare(TypeDef type);
+        bool Supported(Instruction instr);
     }
 }

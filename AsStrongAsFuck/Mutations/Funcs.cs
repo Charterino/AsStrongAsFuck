@@ -22,6 +22,11 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, inda));
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Add));
         }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
+        }
     }
 
     public class Sub : iMutation
@@ -36,6 +41,11 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions[index].Operand = defvalue + two;
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, two));
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Sub));
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
         }
     }
 
@@ -57,6 +67,12 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions[index].Operand = one;
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, two));
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Mul));
+            index += 1;
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
         }
     }
 
@@ -73,6 +89,11 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, two));
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Div));
         }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
+        }
     }
 
     public class Abs : iMutation
@@ -82,6 +103,11 @@ namespace AsStrongAsFuck.Mutations
         public void Process(MethodDef method, ref int index)
         {
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Call, method.Module.Import(typeof(Math).GetMethod("Abs", new Type[] { typeof(int) }))));
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
         }
     }
 
@@ -104,6 +130,11 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldstr, ch));
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Call, method.Module.Import(typeof(string).GetMethod("get_Length"))));
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Add));
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
         }
     }
 
@@ -146,6 +177,11 @@ namespace AsStrongAsFuck.Mutations
         {
             Decryptor = CreateProperField(type);
         }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
+        }
     }
 
     //thanks to TheProxy#5615 for explanation
@@ -167,6 +203,11 @@ namespace AsStrongAsFuck.Mutations
         {
             method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Call, Converter));
         }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
+        }
     }
 
     public class VariableMutation : iMutation
@@ -182,6 +223,11 @@ namespace AsStrongAsFuck.Mutations
             method.Body.Instructions.Insert(0, new Instruction(OpCodes.Ldc_I4, value));
             index += 2;
             method.Body.Instructions[index] = new Instruction(OpCodes.Ldloc, lcl);
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
         }
     }
 
@@ -254,6 +300,74 @@ namespace AsStrongAsFuck.Mutations
                 int index = kv.Value;
                 instructions.Insert(index, instruction);
             }
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return Utils.CheckArithmetic(instr);
+        }
+    }
+
+    public class MulToShift : iMutation
+    {
+        public void Prepare(TypeDef type) { }
+
+        //this shit converts expressions like num * 5 into num + num << 1 + num << 2 
+
+        public void Process(MethodDef method, ref int index)
+        {
+            if (method.Body.Instructions[index - 1].IsLdcI4() && method.Body.Instructions[index - 2].IsLdcI4())
+            {
+                var wl = method.Body.Instructions[index - 2].GetLdcI4Value();
+
+                var val = method.Body.Instructions[index - 1].GetLdcI4Value();
+                if (val >= 3)
+                {
+                    Local lcl = new Local(method.Module.CorLibTypes.Int32);
+                    method.Body.Variables.Add(lcl);
+
+                    method.Body.Instructions.Insert(0, new Instruction(OpCodes.Stloc, lcl));
+                    method.Body.Instructions.Insert(0, new Instruction(OpCodes.Ldc_I4, wl));
+                    index += 2;
+
+                    method.Body.Instructions[index - 2].OpCode = OpCodes.Ldloc;
+                    method.Body.Instructions[index - 2].Operand = lcl;
+
+                    //now we have lcl * val
+                    method.Body.Instructions[index - 1].OpCode = OpCodes.Nop;
+                    method.Body.Instructions[index].OpCode = OpCodes.Nop;
+
+                    int count = 0;
+                    int curval = val;
+                    while (curval > 0)
+                    {
+                        // check for set bit and left  
+                        // shift n, count times 
+                        if ((curval & 1) == 1)
+                        {
+                            if (count != 0)
+                            {
+                                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldloc, lcl));
+                                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, count));
+                                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Shl));
+                                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Add));
+                            }
+                        }
+                        count++;
+                        curval = curval >> 1;
+                    }
+                    if ((val & 1) == 0)
+                    {
+                        method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldloc, lcl));
+                        method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Sub));
+                    }
+                }
+            }
+        }
+
+        public bool Supported(Instruction instr)
+        {
+            return instr.OpCode == OpCodes.Mul;
         }
     }
 }
