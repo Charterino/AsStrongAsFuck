@@ -257,25 +257,36 @@ namespace AsStrongAsFuck.Mutations
             {
                 var value = method.Body.Instructions[index].GetLdcI4Value();
                 Local lcl = new Local(method.Module.CorLibTypes.Int32);
+                Local lcl2 = new Local(method.Module.CorLibTypes.Int32);
                 method.Body.Variables.Add(lcl);
+                method.Body.Variables.Add(lcl2);
 
                 var initial = RuntimeHelper.Random.Next();
-
                 var ifstate = RuntimeHelper.Random.Next();
+                int initial2;
 
-                while (ifstate == initial)
+                bool shouldBeEqual = Convert.ToBoolean(RuntimeHelper.Random.Next(2));
+                if (shouldBeEqual)
+                    initial2 = ifstate - initial;
+                else
                 {
-                    ifstate = RuntimeHelper.Random.Next();
+                    initial2 = RuntimeHelper.Random.Next();
+                    while (initial2 + initial == ifstate)
+                        initial2 = RuntimeHelper.Random.Next();
                 }
 
-                method.Body.Instructions[index] = Instruction.CreateLdcI4(initial);
 
+                method.Body.Instructions[index] = Instruction.CreateLdcI4(initial);
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Stloc, lcl));
+                method.Body.Instructions.Insert(++index, Instruction.CreateLdcI4(initial2));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Stloc, lcl2));
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldloc, lcl));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldloc, lcl2));
+                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Add));
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, ifstate));
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ceq));
                 Instruction nop = OpCodes.Nop.ToInstruction();
-                method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Brtrue, nop));
+                method.Body.Instructions.Insert(++index, new Instruction(shouldBeEqual ? OpCodes.Brfalse : OpCodes.Brtrue, nop));
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Nop));
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Ldc_I4, value));
                 method.Body.Instructions.Insert(++index, new Instruction(OpCodes.Stloc, lcl));
