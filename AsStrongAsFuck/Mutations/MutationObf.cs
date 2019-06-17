@@ -14,12 +14,12 @@ namespace AsStrongAsFuck.Mutations
         public ModuleDef Module { get; set; }
         List<iMutation> Tasks = new List<iMutation>()
         {
-            new Add(),
-            new Sub(),
-            new Div(),
+            //new Add(),
+            //new Sub(),
+            //new Div(),
             //Issue: Mul mutation takes a lot of time because of `While` loop. Funcs.cs#61
             //new Mul(),
-            new StringLen(),
+            //new StringLen(),
             new Abs(),
             new Func(),
             new CharMutations(),
