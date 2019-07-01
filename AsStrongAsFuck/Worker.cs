@@ -1,10 +1,12 @@
-﻿using AsStrongAsFuck.Runtime;
+using AsStrongAsFuck.Runtime;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using dnlib.DotNet.Writer;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -114,12 +116,78 @@ namespace AsStrongAsFuck
 
             asmResolver.DefaultModuleContext = new ModuleContext(asmResolver);
             asmResolver.PostSearchPaths.Insert(0, Path);
+            if (IsCosturaPresent(Module))
+            {
+                foreach (var asm in ExtractCosturaEmbeddedAssemblies(GetEmbeddedCosturaAssemblies(Module), Module))
+                    asmResolver.AddToCache(asm);
+            }
+
             foreach (var dependency in Module.GetAssemblyRefs())
             {
                 AssemblyDef assembly = asmResolver.ResolveThrow(dependency, Module);
                 Console.WriteLine("Resolved " + dependency.Name);
             }
             Module.Context = modCtx;
+        }
+
+        public bool IsCosturaPresent(ModuleDef module) =>
+            module.Types.FirstOrDefault(t => t.Name == "AssemblyLoader" && t.Namespace == "Costura") != null;
+
+        public string[] GetEmbeddedCosturaAssemblies(ModuleDef module)
+        {
+            var list = new List<string>();
+
+            var ctor = module.Types.Single(t => t.Name == "AssemblyLoader" && t.Namespace == "Costura").FindStaticConstructor();
+            var instructions = ctor.Body.Instructions;
+            for (var i = 1; i < instructions.Count; i++)
+            {
+                var curr = instructions[i];
+                if (curr.OpCode != OpCodes.Ldstr || instructions[i - 1].OpCode != OpCodes.Ldstr)
+                    continue;
+
+                if (((string)instructions[i - 1].Operand).EndsWith(".pdb"))
+                {
+                    i++;
+                    continue;
+                }
+
+                list.Add((string)curr.Operand);
+            }
+
+            return list.ToArray();
+        }
+
+        public List<AssemblyDef> ExtractCosturaEmbeddedAssemblies(string[] assemblies, ModuleDef module)
+        {
+            var list = new List<AssemblyDef>();
+
+            foreach (var assembly in assemblies)
+            {
+                var resource = module.Resources.FindEmbeddedResource(assembly.ToLowerInvariant());
+                if (resource == null)
+                    throw new Exception("Couldn't find Costura embedded assembly: " + assembly);
+
+                if (resource.Name.EndsWith(".compressed"))
+                {
+                    list.Add(DecompressCosturaAssembly(resource.GetResourceStream()));
+                    continue;
+                }
+
+                list.Add(AssemblyDef.Load(resource.GetResourceStream()));
+            }
+
+            return list;
+        }
+
+        public AssemblyDef DecompressCosturaAssembly(Stream resource)
+        {
+            using (var def = new DeflateStream(resource, CompressionMode.Decompress))
+            {
+                var ms = new MemoryStream();
+                def.CopyTo(ms);
+                ms.Position = 0;
+                return AssemblyDef.Load(ms);
+            }
         }
 
         public void Save()
