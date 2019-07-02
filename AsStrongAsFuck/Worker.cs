@@ -145,7 +145,8 @@ namespace AsStrongAsFuck
                 if (curr.OpCode != OpCodes.Ldstr || instructions[i - 1].OpCode != OpCodes.Ldstr)
                     continue;
 
-                if (((string)instructions[i - 1].Operand).EndsWith(".pdb"))
+                var resName = ((string)curr.Operand).ToLowerInvariant();
+                if (resName.EndsWith(".pdb") || resName.EndsWith(".pdb.compressed"))
                 {
                     i++;
                     continue;
