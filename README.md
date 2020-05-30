@@ -7,4 +7,4 @@ Help me by improving the obfuscator!
 
 Example of working:
 -
-![one.png](https://charter.ml/asaf.png) <br>
+![one.png](https://charterino.ru/asaf.png) <br>
