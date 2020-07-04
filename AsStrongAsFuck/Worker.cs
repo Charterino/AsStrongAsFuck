@@ -35,6 +35,15 @@ namespace AsStrongAsFuck
             RuntimeHelper.Importer = new Importer(Module);
         }
 
+        public Worker(byte[] file, List<byte[]> deps)
+        {
+            LoadAssemblyFromBytes(file);
+            LoadModuleDefMDFromBytes(file);
+            LoadObfuscations();
+            LoadDependenciesFromBytes(deps);
+            RuntimeHelper.Importer = new Importer(Module);
+        }
+
         public void Watermark()
         {
             Console.WriteLine("Watermarking...");
@@ -93,10 +102,31 @@ namespace AsStrongAsFuck
             Console.ForegroundColor = ConsoleColor.White;
         }
 
+        public void LoadAssemblyFromBytes(byte[] array)
+        {
+            Console.Write("Loading assembly...");
+            Default_Assembly = System.Reflection.Assembly.Load(array);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write(" Loaded: ");
+            Console.WriteLine(Default_Assembly.FullName);
+            Console.ForegroundColor = ConsoleColor.White;
+        }
+
         public void LoadModuleDefMD()
         {
             Console.Write("Loading ModuleDefMD...");
             Module = ModuleDefMD.Load(Path);
+            Assembly = Module.Assembly;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write(" Loaded: ");
+            Console.WriteLine(Module.FullName);
+            Console.ForegroundColor = ConsoleColor.White;
+        }
+
+        public void LoadModuleDefMDFromBytes(byte[] array)
+        {
+            Console.Write("Loading ModuleDefMD...");
+            Module = ModuleDefMD.Load(array);
             Assembly = Module.Assembly;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(" Loaded: ");
@@ -127,6 +157,29 @@ namespace AsStrongAsFuck
                 AssemblyDef assembly = asmResolver.ResolveThrow(dependency, Module);
                 Console.WriteLine("Resolved " + dependency.Name);
             }
+            Module.Context = modCtx;
+        }
+
+        public void LoadDependenciesFromBytes(List<byte[]> files)
+        {
+            Console.WriteLine("Resolving dependencies...");
+            var asmResolver = new AssemblyResolver();
+            ModuleContext modCtx = new ModuleContext(asmResolver);
+
+            asmResolver.DefaultModuleContext = modCtx;
+
+            asmResolver.EnableTypeDefCache = true;
+
+            asmResolver.DefaultModuleContext = new ModuleContext(asmResolver);
+            asmResolver.PostSearchPaths.Insert(0, Path);
+
+            foreach (var item in files)
+            {
+                AssemblyDef assembly = AssemblyDef.Load(item);
+                asmResolver.AddToCache(assembly);
+                Console.WriteLine("Resolved " + assembly.Name);
+            }
+
             Module.Context = modCtx;
         }
 
@@ -199,6 +252,17 @@ namespace AsStrongAsFuck
             opts.Logger = DummyLogger.NoThrowInstance;
             Assembly.Write(Path + ".obfuscated", opts);
             Console.WriteLine("Saved.");
+        }
+
+        public byte[] SaveToArray()
+        {
+            MemoryStream stream = new MemoryStream();
+            Watermark();
+            ModuleWriterOptions opts = new ModuleWriterOptions(Module);
+            opts.Logger = DummyLogger.NoThrowInstance;
+            Assembly.Write(stream, opts);
+            Console.WriteLine("Saved.");
+            return stream.ToArray();
         }
 
         public void LoadObfuscations()
