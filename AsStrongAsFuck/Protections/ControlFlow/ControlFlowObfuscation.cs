@@ -1,8 +1,6 @@
-﻿using AsStrongAsFuck.Runtime;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 
 namespace AsStrongAsFuck.ControlFlow
 {
@@ -32,68 +30,34 @@ namespace AsStrongAsFuck.ControlFlow
 
         public void ExecuteMethod(MethodDef method)
         {
-            method.Body.SimplifyMacros(method.Parameters);
-            List<Block> blocks = BlockParser.ParseMethod(method);
-            blocks = Randomize(blocks);
-            method.Body.Instructions.Clear();
-            Local local = new Local(Module.CorLibTypes.Int32);
-            method.Body.Variables.Add(local);
-            Instruction target = Instruction.Create(OpCodes.Nop);
-            Instruction instr = Instruction.Create(OpCodes.Br, target);
-            foreach (Instruction instruction in Calc(0))
-                method.Body.Instructions.Add(instruction);
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Stloc, local));
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Br, instr));
-            method.Body.Instructions.Add(target);
-            foreach (Block block in blocks)
+            for (int i = 0; i < method.Body.Instructions.Count; i++)
             {
-                if (block != blocks.Single(x => x.Number == blocks.Count - 1))
+                if (method.Body.Instructions[i].IsLdcI4())
                 {
-                    method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc, local));
-                    foreach (Instruction instruction in Calc(block.Number))
-                        method.Body.Instructions.Add(instruction);
-                    method.Body.Instructions.Add(Instruction.Create(OpCodes.Ceq));
-                    Instruction instruction4 = Instruction.Create(OpCodes.Nop);
-                    method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, instruction4));
-                    foreach (Instruction instruction in block.Instructions)
-                        method.Body.Instructions.Add(instruction);
-                    foreach (Instruction instruction in Calc(block.Number + 1))
-                        method.Body.Instructions.Add(instruction);
+                    int numorig = new Random(Guid.NewGuid().GetHashCode()).Next();
+                    int div = new Random(Guid.NewGuid().GetHashCode()).Next();
+                    int num = numorig ^ div;
 
-                    method.Body.Instructions.Add(Instruction.Create(OpCodes.Stloc, local));
-                    method.Body.Instructions.Add(instruction4);
+                    Instruction nop = OpCodes.Nop.ToInstruction();
+
+                    Local local = new Local(method.Module.ImportAsTypeSig(typeof(int)));
+                    method.Body.Variables.Add(local);
+
+                    method.Body.Instructions.Insert(i + 1, OpCodes.Stloc.ToInstruction(local));
+                    method.Body.Instructions.Insert(i + 2, Instruction.Create(OpCodes.Ldc_I4, method.Body.Instructions[i].GetLdcI4Value() - sizeof(float)));
+                    method.Body.Instructions.Insert(i + 3, Instruction.Create(OpCodes.Ldc_I4, num));
+                    method.Body.Instructions.Insert(i + 4, Instruction.Create(OpCodes.Ldc_I4, div));
+                    method.Body.Instructions.Insert(i + 5, Instruction.Create(OpCodes.Xor));
+                    method.Body.Instructions.Insert(i + 6, Instruction.Create(OpCodes.Ldc_I4, numorig));
+                    method.Body.Instructions.Insert(i + 7, Instruction.Create(OpCodes.Bne_Un, nop));
+                    method.Body.Instructions.Insert(i + 8, Instruction.Create(OpCodes.Ldc_I4, 2));
+                    method.Body.Instructions.Insert(i + 9, OpCodes.Stloc.ToInstruction(local));
+                    method.Body.Instructions.Insert(i + 10, Instruction.Create(OpCodes.Sizeof, method.Module.Import(typeof(float))));
+                    method.Body.Instructions.Insert(i + 11, Instruction.Create(OpCodes.Add));
+                    method.Body.Instructions.Insert(i + 12, nop);
+                    i += 12;
                 }
             }
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc, local));
-            foreach (Instruction instruction in Calc(blocks.Count - 1))
-                method.Body.Instructions.Add(instruction);
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Ceq));
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, instr));
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Br, blocks.Single(x => x.Number == blocks.Count - 1).Instructions[0]));
-            method.Body.Instructions.Add(instr);
-            foreach (Instruction lastBlock in blocks.Single(x => x.Number == blocks.Count - 1).Instructions)
-                method.Body.Instructions.Add(lastBlock);
-        }
-
-        public List<Block> Randomize(List<Block> input)
-        {
-            List<Block> ret = new List<Block>();
-            foreach (var group in input)
-                ret.Insert(RuntimeHelper.Random.Next(0, ret.Count), group);
-            return ret;
-        }
-
-
-        public List<Instruction> Calc(int value)
-        {
-            List<Instruction> instructions = new List<Instruction>();
-            instructions.Add(Instruction.Create(OpCodes.Ldc_I4, value));
-            return instructions;
-        }
-
-        public void AddJump(IList<Instruction> instrs, Instruction target)
-        {
-            instrs.Add(Instruction.Create(OpCodes.Br, target));
         }
     }
 }
