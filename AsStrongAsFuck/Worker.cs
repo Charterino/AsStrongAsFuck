@@ -66,15 +66,15 @@ namespace AsStrongAsFuck
             Module.CustomAttributes.Add(attr);
         }
 
-        public void ExecuteObfuscations(string param)
+        public void ExecuteObfuscations(int[] obfuscations)
         {
-            Code = param;
-            var shit = param.ToCharArray().ToList();
+            //Code = param;
+            //var shit = param.ToCharArray().ToList();
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            foreach (var v in shit)
+            foreach (var v in obfuscations)
             {
-                int i = int.Parse(v.ToString()) - 1;
+                int i = v - 1;
                 Logger.LogMessage("Executing ", Obfuscations[i], ConsoleColor.Magenta);
                 Type type = OwnAssembly.GetTypes().First(x => x.Name == Obfuscations[i]);
                 var instance = Activator.CreateInstance(type);
@@ -244,20 +244,21 @@ namespace AsStrongAsFuck
             }
         }
 
-        public void Save()
+        public void Save(string outputpath)
         {
-            Watermark();
-            Logger.LogMessage("Saving as ", Path + ".obfuscated", ConsoleColor.Yellow);
+
+            //Watermark();
+            Logger.LogMessage("Saving as ", outputpath, ConsoleColor.Yellow);
             ModuleWriterOptions opts = new ModuleWriterOptions(Module);
             opts.Logger = DummyLogger.NoThrowInstance;
-            Assembly.Write(Path + ".obfuscated", opts);
+            Assembly.Write(outputpath, opts);
             Console.WriteLine("Saved.");
         }
 
         public byte[] SaveToArray()
         {
             MemoryStream stream = new MemoryStream();
-            Watermark();
+            //Watermark();
             ModuleWriterOptions opts = new ModuleWriterOptions(Module);
             opts.Logger = DummyLogger.NoThrowInstance;
             Assembly.Write(stream, opts);
