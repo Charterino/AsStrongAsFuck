@@ -62,7 +62,7 @@ namespace AsStrongAsFuck
             ctor.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
             attrType.Methods.Add(ctor);
             var attr = new CustomAttribute(ctor);
-            attr.ConstructorArguments.Add(new CAArgument(Module.CorLibTypes.String, "AsStrongAsFuck obfuscator by Charter(vk.com/violent_0). " + Code));
+            attr.ConstructorArguments.Add(new CAArgument(Module.CorLibTypes.String, "AsStrongAsFuck obfuscator by Charter(github.com/Charterino/AsStrongAsFuck/). " + Code));
             Module.CustomAttributes.Add(attr);
         }
 
